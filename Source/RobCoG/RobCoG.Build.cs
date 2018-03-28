@@ -8,7 +8,7 @@ public class RobCoG : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
+    PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Sockets", "Networking", "URoboVision" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
 			"HeadMountedDisplay",

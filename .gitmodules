@@ -1,0 +1,3 @@
+[submodule "Plugins/URoboVision"]
+	path = Plugins/URoboVision
+	url = ../../robcog-iai/URoboVision.git
