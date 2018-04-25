@@ -69,8 +69,26 @@ public:
   UPROPERTY(EditAnywhere, Category = "Scan Settings")
     float UpdateTime;
 
+  UPROPERTY(EditAnywhere, Category = "Scan Settings")
+    int NoOfViewpoints;
+
+  UPROPERTY(EditAnywhere, Category = "Scan Settings")
+    float HeightAngle;
+
+  UPROPERTY(EditAnywhere, Category = "Scan Settings")
+    int HeightOffset;
+
+  UPROPERTY(EditAnywhere, Category = "Scan Settings")
+    int NoOfHeightViewpoints;
+
+  UPROPERTY(EditAnywhere, Category = "Scan Settings")
+    bool bUseMirror;
+
+  UPROPERTY(EditAnywhere, Category = "Scan Settings")
+    bool bUseHeightViewPoints;
+
 	/** The IP Adsress for the server socket */
-	UPROPERTY(EditAnywhere, Category = "TCPSocket")
+  UPROPERTY(EditAnywhere, Category = "TCPSocket")
 		FString IPAddress;
 
 	/** The port for the server socket */
@@ -159,7 +177,9 @@ private:
 
   float AngleAxis;
 
-  bool bIsWaitingForTimer;
+  int ProcessedViewpoints;
+
+  bool bProcessHeightViewpoints;
 
   FTimerHandle UpdateTimerHandle;
 

@@ -24,11 +24,20 @@ ASpawnBox::ASpawnBox()
 	SpawnVolume->bGenerateOverlapEvents = true;
 
 	CameraRadius = 50;
+  CameraHeight = 0;
   UpdateTime = 5.0f;
   Angle = 90.f;
+  HeightAngle = 90.f;
+
+  NoOfViewpoints = 3;
+  NoOfHeightViewpoints = 2;
+  HeightOffset = 20;
+  bUseMirror = false;
+  bUseHeightViewPoints = false;
+  bProcessHeightViewpoints = false;
+
   AngleAxis = 0.0f;
 	bIsScanning = false;
-  bIsWaitingForTimer = false;
 
 }
 
@@ -37,7 +46,7 @@ void ASpawnBox::BeginPlay()
 	Super::BeginPlay();
 
 	// always start scanning at the height of the SpawnVolume
-	CameraHeight = SpawnVolume->GetComponentLocation().Z;
+  //CameraHeight = SpawnVolume->GetComponentLocation().Z;
 
   if(!ScanCamera)
   {
@@ -45,7 +54,7 @@ void ASpawnBox::BeginPlay()
   }
 
 	// open the socket
-	ASpawnBox::LaunchTCP();	
+  //ASpawnBox::LaunchTCP();
 
   // Angle to big, reset
   if(Angle >= 360)
@@ -53,10 +62,20 @@ void ASpawnBox::BeginPlay()
     Angle = 90.f;
     UE_LOG(SB_Log, Log, TEXT("This angle is too large. Please select between 0 and 360"));
   }
-  // for testing
-  SetUpCamera();
+
+  if (bUseHeightViewPoints)
+  {
+    ProcessedViewpoints = NoOfViewpoints + NoOfHeightViewpoints;
+  }
+  else
+  {
+    ProcessedViewpoints = NoOfViewpoints;
+  }
+
   bIsScanning = true;
+  SetUpCamera();
   GetWorldTimerManager().SetTimer(UpdateTimerHandle, this, &ASpawnBox::UpdateCamera, UpdateTime, true);
+  //SpawnObjects();
 }
 
 void ASpawnBox::Tick( float DeltaTime )
@@ -66,41 +85,99 @@ void ASpawnBox::Tick( float DeltaTime )
 
 void ASpawnBox::SetUpCamera()
 {
-	if (ScanCamera)
-	{
-    // compute new location on a circle around the SpawnVolume
-    if( AngleAxis >= 360.0f) { AngleAxis = 0; }
+  if (ScanCamera)
+  {
+    SpawnObjects();
+    if( ProcessedViewpoints == 0)
+    {
+      GetWorld()->GetTimerManager().ClearTimer(UpdateTimerHandle);
+      bProcessHeightViewpoints = false;
+      return;
+    }
 
+
+    float i;
+    if (ProcessedViewpoints == NoOfViewpoints + NoOfHeightViewpoints)
+    {
+      i = NoOfViewpoints / 2;
+      AngleAxis -= (HeightAngle * ((NoOfViewpoints % 2 != 0) ? i : (0.5 * i)));
+    }
+    else if (ProcessedViewpoints == NoOfHeightViewpoints)
+    {
+      AngleAxis = 0.0f;
+
+      i = NoOfHeightViewpoints / 2;
+      AngleAxis -= (HeightAngle * ((NoOfHeightViewpoints % 2 != 0) ? i : (0.5 * i)));
+      bProcessHeightViewpoints = true;
+    }
+    else
+    {
+      // normal step
+      // compute new location on a circle around the SpawnVolume
+      AngleAxis += bProcessHeightViewpoints ? HeightAngle : Angle;
+      if( AngleAxis >= 360.0f) { AngleAxis = 0; }
+    }
+
+    --ProcessedViewpoints;
     FVector NewLocation = SpawnVolume->GetComponentLocation();
 
-    FVector RotateValue = FVector(CameraRadius, 0,0).RotateAngleAxis(AngleAxis, FVector::UpVector);
+    FVector RotateValue = FVector(CameraRadius, 0, 0).RotateAngleAxis(AngleAxis, FVector::UpVector);
+
 
     NewLocation.X += RotateValue.X;
     NewLocation.Y += RotateValue.Y;
-    NewLocation.Z += RotateValue.Z;
+    NewLocation.Z += bProcessHeightViewpoints ? (CameraHeight + HeightOffset) : CameraHeight;
 
     // the camera looks to the midpoint of the SpawnVolume
     FRotator Rot = UKismetMathLibrary::FindLookAtRotation(NewLocation, SpawnVolume->GetComponentLocation());
 
     ScanCamera->SetActorLocationAndRotation(NewLocation, Rot);
-	}
+  }
 }
 
 void ASpawnBox::UpdateCamera()
 {
 	if (ScanCamera)
 	{
-    // compute new location on a circle around the SpawnVolume
-    AngleAxis += Angle;
-    if( AngleAxis >= 360.0f) { AngleAxis = 0; }
+    if( ProcessedViewpoints == 0)
+    {
+      GetWorld()->GetTimerManager().ClearTimer(UpdateTimerHandle);
+      bProcessHeightViewpoints = false;
+      return;
+    }
 
+
+    float i;
+    if (ProcessedViewpoints == NoOfViewpoints + NoOfHeightViewpoints)
+    {
+      i = NoOfViewpoints / 2;
+      AngleAxis -= (HeightAngle * ((NoOfViewpoints % 2 != 0) ? i : (0.5 * i)));
+    }
+    else if (ProcessedViewpoints == NoOfHeightViewpoints)
+    {
+      AngleAxis = 0.0f;
+
+      i = NoOfHeightViewpoints / 2;
+      AngleAxis -= (HeightAngle * ((NoOfHeightViewpoints % 2 != 0) ? i : (0.5 * i)));
+      bProcessHeightViewpoints = true;
+    }
+    else
+    {
+      // normal step
+      // compute new location on a circle around the SpawnVolume
+      AngleAxis += bProcessHeightViewpoints ? HeightAngle : Angle;
+      if( AngleAxis >= 360.0f) { AngleAxis = 0; }
+    }
+
+    --ProcessedViewpoints;
     FVector NewLocation = SpawnVolume->GetComponentLocation();
 
-    FVector RotateValue = FVector(CameraRadius, 0,0).RotateAngleAxis(AngleAxis, FVector::UpVector);
+    FVector RotateValue = FVector(CameraRadius, 0, 0).RotateAngleAxis(AngleAxis, FVector::UpVector);
+
 
     NewLocation.X += RotateValue.X;
     NewLocation.Y += RotateValue.Y;
-    NewLocation.Z += RotateValue.Z;
+    NewLocation.Z += bProcessHeightViewpoints ? (CameraHeight + HeightOffset) : CameraHeight;
 
     // the camera looks to the midpoint of the SpawnVolume
     FRotator Rot = UKismetMathLibrary::FindLookAtRotation(NewLocation, SpawnVolume->GetComponentLocation());
@@ -119,7 +196,7 @@ void ASpawnBox::SpawnObjects()
 			FVector OriginalLocation = Object->GetActorLocation();
 
 			// increase the max value, if you want more rounds when looking for a possible location
-			for (size_t i = 1; i < 10; i++)
+      for (size_t i = 1; i < 200; i++)
 			{
 				SpawnedActor = SpawnOneObject(Object);
 				if (SpawnedActor)
@@ -487,8 +564,7 @@ void ASpawnBox::InterpretCommand(FString cmd)
 {
   if (cmd.Equals("StartDefault"))
   {
-    CameraHeight = CameraHeight = SpawnVolume->GetComponentLocation().Z;
-    RotationSteps = 360;
+    CameraHeight = SpawnVolume->GetComponentLocation().Z;
     CameraRadius = 100;
     ASpawnBox::SpawnObjects();
     SetUpCamera();
@@ -544,14 +620,12 @@ void ASpawnBox::InterpretCommand(FString cmd)
     FString NumberString;
     cmd.Split("p", nullptr, &NumberString);
     float newValue = FCString::Atof(*NumberString);
-    RotationSteps = newValue;
     ASpawnBox::TCPSend(cmd + " executed!");
     return;
   }
   if (cmd.Equals("Default"))
   {
     CameraHeight = CameraHeight = SpawnVolume->GetComponentLocation().Z;
-    RotationSteps = 360;
     CameraRadius = 100;
     ASpawnBox::TCPSend(cmd + " executed!");
     return;
